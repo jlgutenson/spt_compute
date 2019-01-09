@@ -19,49 +19,6 @@ from .CreateInflowFileFromECMWFRunoff import CreateInflowFileFromECMWFRunoff
 from .helper_functions import (case_insensitive_file_search,
                                get_ensemble_number_from_forecast,
                                CaptureStdOutToLog)
-import tarfile
-from fabric.api import run, env
-import paramiko
-
-
-# ----------------------------------------------------------------------------------------
-# HELPER FUNCTIONS
-# ----------------------------------------------------------------------------------------
-def upload_single_forecast_to_tethys(job_info):
-    """
-    Uploads a single forecast file to CKAN
-    """
-    print("Uploading {0} {1} {2} {3}".format(job_info['watershed'],
-                                             job_info['subbasin'],
-                                             job_info['forecast_date_timestep'],
-                                             job_info['ensemble_number']))
-    tethys_url = job_info['tethys_url']
-    tethys_directory = "{0}/{1}-{2}/{3}00".format(job_info['tethys_directory'],
-                                                job_info['watershed'],
-                                                job_info['subbasin'],
-                                                job_info['forecast_date_timestep'])
-    tethys_username = job_info['tethys_username']
-    tethys_keyfilename = job_info['tethys_keyfilename']
-
-
-    qout_file_name = 'Qout_{0}_{1}_{2}.nc'.format(job_info['watershed'],
-                                                  job_info['subbasin'],
-                                                  job_info['ensemble_number'])
-
-    # use paramiko to scp files from compute node to Tethys server
-    # make an ssh connection to the Tethys server
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(tethys_url, username=tethys_username, key_filename=tethys_keyfilename)
-    #sftp the netcdf Qout from the sptcompute to the UMIP server
-    from_file = job_info['outflow_file_name']
-    to_file = os.path.join(tethys_directory,qout_file_name)
-    sftp = ssh.open_sftp()           
-    sftp.put(from_file, to_file)
-    sftp.close()
-    ssh.close()
-    print("Upload of forecast from {0} to {1} successful.".format(from_file,to_file))
-
                               
 #------------------------------------------------------------------------------
 #functions
@@ -69,7 +26,7 @@ def upload_single_forecast_to_tethys(job_info):
 def ecmwf_rapid_multiprocess_worker(node_path, rapid_input_directory,
                                     ecmwf_forecast, forecast_date_timestep, 
                                     watershed, subbasin, rapid_executable_location, 
-                                    init_flow, initialization_time_step):
+                                    init_flow):
     """
     Multiprocess worker function
     """
@@ -140,7 +97,7 @@ def ecmwf_rapid_multiprocess_worker(node_path, rapid_input_directory,
     if(init_flow):
         #check for qinit file
         past_date = (datetime.datetime.strptime(forecast_date_timestep[:11],"%Y%m%d.%H") - \
-                     datetime.timedelta(hours=initialization_time_step)).strftime("%Y%m%dt%H")
+                     datetime.timedelta(hours=12)).strftime("%Y%m%dt%H")
         qinit_file = os.path.join(rapid_input_directory, 'Qinit_%s.csv' % past_date)
         BS_opt_Qinit = qinit_file and os.path.exists(qinit_file)
         if not BS_opt_Qinit:
@@ -386,37 +343,24 @@ def ecmwf_rapid_multiprocess_worker(node_path, rapid_input_directory,
     time_stop_all = datetime.datetime.utcnow()
     print("INFO: Total time to compute: {0}".format(time_stop_all-time_start_all))
 
-def run_ecmwf_rapid_multiprocess_worker(watershed_jobs_info, job):
+def run_ecmwf_rapid_multiprocess_worker(args):
     """
     Duplicate HTCondor behavior for multiprocess worker
     """
-    ecmwf_forecast = job[0]
-    forecast_date_timestep = job[1]
-    watershed = job[2]
-    subbasin = job[3]
-    rapid_executable_location = job[4]
-    initialize_flows = job[5]
-    job_name = job[6]
-    master_rapid_outflow_file = job[7]
-    rapid_input_directory = job[8] 
-    mp_execute_directory = job[9]
-    subprocess_forecast_log_dir = job[10]
-    watershed_job_index = job[11]
-    initialization_time_step = job[12] 
 
-    # ecmwf_forecast = args[0]
-    # forecast_date_timestep = args[1]
-    # watershed = args[2]
-    # subbasin = args[3]
-    # rapid_executable_location = args[4]
-    # initialize_flows = args[5]
-    # job_name = args[6]
-    # master_rapid_outflow_file = args[7]
-    # rapid_input_directory = args[8] 
-    # mp_execute_directory = args[9]
-    # subprocess_forecast_log_dir = args[10]
-    # watershed_job_index = args[11]
-    # initialization_time_step = args[12] 
+    ecmwf_forecast = args[0]
+    forecast_date_timestep = args[1]
+    watershed = args[2]
+    subbasin = args[3]
+    rapid_executable_location = args[4]
+    initialize_flows = args[5]
+    job_name = args[6]
+    master_rapid_outflow_file = args[7]
+    rapid_input_directory = args[8] 
+    mp_execute_directory = args[9]
+    subprocess_forecast_log_dir = args[10]
+    watershed_job_index = args[11]
+    
     
     with CaptureStdOutToLog(os.path.join(subprocess_forecast_log_dir, "{0}.log".format(job_name))):
         #create folder to run job
@@ -430,7 +374,7 @@ def run_ecmwf_rapid_multiprocess_worker(watershed_jobs_info, job):
             ecmwf_rapid_multiprocess_worker(execute_directory, rapid_input_directory,
                                             ecmwf_forecast, forecast_date_timestep, 
                                             watershed, subbasin, rapid_executable_location, 
-                                            initialize_flows, initialization_time_step)
+                                            initialize_flows)
              
             #move output file from compute node to master location
             node_rapid_outflow_file = os.path.join(execute_directory, 
@@ -438,11 +382,8 @@ def run_ecmwf_rapid_multiprocess_worker(watershed_jobs_info, job):
                                                    
             move(node_rapid_outflow_file, master_rapid_outflow_file)
             rmtree(execute_directory)
-            # added this to try to upload forecast as it is generated
-            # upload_forecast = upload_single_forecast_to_tethys(watershed_jobs_info[watershed_job_index])
         except Exception:
             rmtree(execute_directory)
             traceback.print_exc()
             raise
     return watershed_job_index
-    
