@@ -293,7 +293,7 @@ def run_ecmwf_forecast_process(rapid_executable_location,  # path to RAPID execu
                                                                    initial_forecast_date_timestep,
                                                                    "historical_streamflow_file"))
                 if seasonal_init_job_list:
-                    use multiprocessing instead of htcondor due to potential for huge file sizes
+                    # use multiprocessing instead of htcondor due to potential for huge file sizes
                     if len(seasonal_init_job_list) > 1:
                         seasonal_pool = mp_Pool()
                         seasonal_pool.imap(compute_seasonal_initial_rapid_flows_multicore_worker,
