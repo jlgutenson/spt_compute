@@ -293,16 +293,16 @@ def run_ecmwf_forecast_process(rapid_executable_location,  # path to RAPID execu
                                                                    initial_forecast_date_timestep,
                                                                    "historical_streamflow_file"))
                 if seasonal_init_job_list:
-                    # use multiprocessing instead of htcondor due to potential for huge file sizes
-                    # if len(seasonal_init_job_list) > 1:
-                    #     seasonal_pool = mp_Pool()
-                    #     seasonal_pool.imap(compute_seasonal_initial_rapid_flows_multicore_worker,
-                    #                        seasonal_init_job_list,
-                    #                        chunksize=1)
-                    #     seasonal_pool.close()
-                    #     seasonal_pool.join()
-                    # else:
-                    compute_seasonal_initial_rapid_flows_multicore_worker(seasonal_init_job_list[0])
+                    use multiprocessing instead of htcondor due to potential for huge file sizes
+                    if len(seasonal_init_job_list) > 1:
+                        seasonal_pool = mp_Pool()
+                        seasonal_pool.imap(compute_seasonal_initial_rapid_flows_multicore_worker,
+                                           seasonal_init_job_list,
+                                           chunksize=1)
+                        seasonal_pool.close()
+                        seasonal_pool.join()
+                    else:
+                        compute_seasonal_initial_rapid_flows_multicore_worker(seasonal_init_job_list[0])
             # ----------------------------------------------------------------------
             # BEGIN ECMWF-RAPID FORECAST LOOP
             # ----------------------------------------------------------------------
@@ -386,11 +386,6 @@ def run_ecmwf_forecast_process(rapid_executable_location,  # path to RAPID execu
                                                                                          'forecast_date_timestep': forecast_date_timestep,
                                                                                          'ensemble_number': ensemble_number,
                                                                                          'master_watershed_outflow_directory': master_watershed_outflow_directory,
-                                                                                         'data_manager':data_manager, # added this to try to upload forecast in mp
-                                                                                         'tethys_url':tethys_url, # added this to try to upload forecast in mp
-                                                                                         'tethys_directory':tethys_directory, # added this to try to upload forecast in mp
-                                                                                         'tethys_username':tethys_username, # added this to try to upload forecast in mp
-                                                                                         'tethys_keyfilename':tethys_keyfilename #added this to try to upload forecast in mp
                                                                                          })
                         
                         if mp_mode == "htcondor":
