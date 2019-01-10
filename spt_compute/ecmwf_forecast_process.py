@@ -450,8 +450,7 @@ def run_ecmwf_forecast_process(rapid_executable_location,  # path to RAPID execu
 
                     elif mp_mode == "multiprocess":
                         pool_main = mp_Pool()
-                        func = partial(run_ecmwf_rapid_multiprocess_worker, watershed_job_info['jobs_info'])
-                        multiprocess_worker_list = pool_main.imap_unordered(func,
+                        multiprocess_worker_list = pool_main.imap_unordered(run_ecmwf_rapid_multiprocess_worker,
                                                                             watershed_job_info['jobs'],
                                                                             chunksize=1)
                         if data_manager:
