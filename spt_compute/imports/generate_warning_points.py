@@ -284,8 +284,7 @@ def compare_return_periods_to_thresholds(return_period_rivids, return_period_20_
     return int(return_period), str(feature_geojson) 
 
 def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, return_period_file,
-                                  out_directory, tethys_url, tethys_directory,
-                                  tethys_username,tethys_keyfilename,forecast_date_timestep,
+                                  out_directory, forecast_date_timestep,
                                   threshold):
     """
     Create warning points from return periods and ECMWF prediction data
@@ -437,39 +436,16 @@ def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, 
                 as outfile:
             outfile.write(text(dumps(
                 geojson_features_to_collection(return_20_points_features))))
-            upload_warning_points_to_tethys(watershed,subbasin,
-                                            out_directory,
-                                            tethys_url,
-                                            tethys_directory,
-                                            filename,
-                                            tethys_username,
-                                            tethys_keyfilename,
-                                            forecast_date_timestep)
     if len(return_10_points_features)>0:
         filename = "return_10_points.geojson"
         with open(os.path.join(out_directory, filename), 'w') \
                 as outfile:
             outfile.write(text(dumps(
                 geojson_features_to_collection(return_10_points_features))))
-            upload_warning_points_to_tethys(watershed,subbasin,
-                                            out_directory,
-                                            tethys_url,
-                                            tethys_directory,
-                                            filename,
-                                            tethys_username,
-                                            tethys_keyfilename,
-                                            forecast_date_timestep)
     if len(return_2_points_features)>0:
         filename = "return_2_points.geojson"
         with open(os.path.join(out_directory, filename), 'w') \
                 as outfile:
             outfile.write(text(dumps(
                 geojson_features_to_collection(return_2_points_features))))
-            upload_warning_points_to_tethys(watershed,subbasin,
-                                            out_directory,
-                                            tethys_url,
-                                            tethys_directory,
-                                            filename,
-                                            tethys_username,
-                                            tethys_keyfilename,
-                                            forecast_date_timestep)
+
