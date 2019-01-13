@@ -364,68 +364,67 @@ def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, 
         lon_coord = return_period_lon_data[return_rivid_index]
 
         # create graduated thresholds if needed
-        if return_period_20 < threshold:
-            pass
-            # return_period_20 = threshold*10
-            # return_period_10 = threshold*5
-            # return_period_2 = threshold
+        if threshold is not None:
+            if return_period_20 < threshold:
+                return_period_20 = -1
+                return_period_10 = -1
+                return_period_2 = -1
 
-        else:# get mean
-            mean_ar = mean_ds.isel(rivid=rivid_index)
-            # mean plus std
-            std_ar = std_ds.isel(rivid=rivid_index)
-            std_upper_ar = (mean_ar + std_ar)
-            max_ar = max_ds.isel(rivid=rivid_index)
-            std_upper_ar[std_upper_ar > max_ar] = max_ar
+        mean_ar = mean_ds.isel(rivid=rivid_index)
+        # mean plus std
+        std_ar = std_ds.isel(rivid=rivid_index)
+        std_upper_ar = (mean_ar + std_ar)
+        max_ar = max_ds.isel(rivid=rivid_index)
+        std_upper_ar[std_upper_ar > max_ar] = max_ar
 
-            combinded_stats = pd.DataFrame({
-                'mean': mean_ar.to_dataframe().Qout,
-                'std_upper': std_upper_ar.to_dataframe().Qout
-            })
+        combinded_stats = pd.DataFrame({
+            'mean': mean_ar.to_dataframe().Qout,
+            'std_upper': std_upper_ar.to_dataframe().Qout
+        })
 
-            for peak_info \
-                    in combinded_stats.itertuples():
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.mean)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
+        for peak_info \
+                in combinded_stats.itertuples():
+            feature_geojson = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [lon_coord, lat_coord]
+                },
+                "properties": {
+                    "mean_peak": float("{0:.2f}".format(peak_info.mean)),
+                    "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
+                    "rivid": int(rivid),
+                    "size": 1
                 }
-                if peak_info.mean > return_period_20:
-                    return_20_points_features.append(feature_geojson)
-                elif peak_info.mean > return_period_10:
-                    return_10_points_features.append(feature_geojson)
-                elif peak_info.mean > return_period_2:
-                    return_2_points_features.append(feature_geojson)
+            }
+            if peak_info.mean > return_period_20:
+                return_20_points_features.append(feature_geojson)
+            elif peak_info.mean > return_period_10:
+                return_10_points_features.append(feature_geojson)
+            elif peak_info.mean > return_period_2:
+                return_2_points_features.append(feature_geojson)
 
-                feature_std_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "std_upper_peak":
-                            float("{0:.2f}".format(peak_info.std_upper)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
+            feature_std_geojson = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [lon_coord, lat_coord]
+                },
+                "properties": {
+                    "std_upper_peak":
+                        float("{0:.2f}".format(peak_info.std_upper)),
+                    "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
+                    "rivid": int(rivid),
+                    "size": 1
                 }
+            }
 
-                if peak_info.std_upper > return_period_20:
-                    return_20_points_features.append(feature_std_geojson)
-                elif peak_info.std_upper > return_period_10:
-                    return_10_points_features.append(feature_std_geojson)
-                elif peak_info.std_upper > return_period_2:
-                    return_2_points_features.append(feature_std_geojson)
+            if peak_info.std_upper > return_period_20:
+                return_20_points_features.append(feature_std_geojson)
+            elif peak_info.std_upper > return_period_10:
+                return_10_points_features.append(feature_std_geojson)
+            elif peak_info.std_upper > return_period_2:
+                return_2_points_features.append(feature_std_geojson)
     print("{0} reaches exceed the 20-Year Return Period".format(len(return_20_points_features)))
     print("{0} reaches exceed the 10-Year Return Period".format(len(return_10_points_features)))
     print("{0} reaches exceed the 2-Year Return Period".format(len(return_2_points_features)))
