@@ -19,36 +19,6 @@ from netCDF4 import Dataset as NETDataset
 import numpy as np
 import pandas as pd
 import xarray
-from multiprocessing import Pool
-from functools import partial
-import paramiko
-
-def set_host_config(ip, user, key_filename):
-    env.host_string = ip
-    env.user = user
-    env.key_filename = key_filename
-
-def chmod(folder_absolute_path):
-    """
-    creates new folder
-    """
-    run('chmod 775 {0}'.format(folder_absolute_path))
-
-def upload_warning_points_to_tethys(watershed,subbasin,compute_directory,tethys_url,tethys_directory,warning_point_file,
-                                    tethys_username,tethys_keyfilename,forecast_date_timestep):
-    # use paramiko to scp files from compute node to Tethys server
-    # make an ssh connection to the Tethys server
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(tethys_url, username=tethys_username, key_filename=tethys_keyfilename)
-    # scp the geojson into the Tethys forecast directory
-    from_file = os.path.join(compute_directory,warning_point_file)
-    tethys_directory="{0}/{1}-{2}/{3}00".format(tethys_directory,watershed,subbasin,forecast_date_timestep)
-    to_file = os.path.join(tethys_directory,warning_point_file)
-    sftp = ssh.open_sftp()             
-    sftp.put(from_file, to_file)
-    sftp.close()
-    ssh.close()
 
 
 def geojson_features_to_collection(geojson_features):
@@ -153,139 +123,9 @@ def generate_lsm_warning_points(qout_file, return_period_file, out_directory,
         outfile.write(text(dumps(
             geojson_features_to_collection(return_2_points_features))))
 
-def compare_return_periods_to_thresholds(return_period_rivids, return_period_20_data, 
-                                         return_period_10_data, return_period_2_data, 
-                                         return_period_lat_data, return_period_lon_data, 
-                                         merged_ds, mean_ds, std_ds, max_ds, 
-                                         threshold, rivid_indices, rivid):
-    rivid_index = rivid_indices[rivid]
-    return_rivid_index = np.where(return_period_rivids == rivid)[0][0]
-    return_period_20 = return_period_20_data[return_rivid_index]
-    return_period_10 = return_period_10_data[return_rivid_index]
-    return_period_2 = return_period_2_data[return_rivid_index]
-    lat_coord = return_period_lat_data[return_rivid_index]
-    lon_coord = return_period_lon_data[return_rivid_index]
 
-    # compare return period to threshold and don't create geojson if threshold
-    # is greater than the return period
-    if return_period_20 < threshold:
-        return_period = 0
-        feature_geojson = "None"
-    else:# get mean
-        mean_ar = mean_ds.isel(rivid=rivid_index)
-        # mean plus std
-        std_ar = std_ds.isel(rivid=rivid_index)
-        std_upper_ar = (mean_ar + std_ar)
-        max_ar = max_ds.isel(rivid=rivid_index)
-        std_upper_ar[std_upper_ar > max_ar] = max_ar
-
-        combinded_stats = pd.DataFrame({
-            'mean': mean_ar.to_dataframe().Qout,
-            'std_upper': std_upper_ar.to_dataframe().Qout
-        })
-
-        for peak_info in combinded_stats.itertuples():
-            if peak_info.mean >= return_period_20:
-                return_period = 20
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.mean)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
-                }
-            elif peak_info.std_upper > return_period_20:
-                return_period = 20
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.std_upper)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
-                }
-            elif peak_info.mean > return_period_10:
-                return_period = 10
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.mean)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
-                }
-            elif peak_info.std_upper > return_period_10:
-                return_period = 10
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.std_upper)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
-                }
-            elif peak_info.mean > return_period_2:
-                return_period = 2
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.mean)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
-                }
-            elif peak_info.std_upper > return_period_2:
-                return_period = 2
-                feature_geojson = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [lon_coord, lat_coord]
-                    },
-                    "properties": {
-                        "mean_peak": float("{0:.2f}".format(peak_info.std_upper)),
-                        "peak_date": peak_info.Index.strftime("%Y-%m-%d"),
-                        "rivid": int(rivid),
-                        "size": 1
-                    }
-                }
-            elif peak_info.mean < return_period_2:
-                return_period = 0
-                feature_geojson = None
-            elif peak_info.std_upper < return_period_2:
-                return_period = 0
-                feature_geojson = None            
-    return int(return_period), str(feature_geojson) 
-
-def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, return_period_file,
-                                  out_directory, forecast_date_timestep,
-                                  threshold):
+def generate_ecmwf_warning_points(ecmwf_prediction_folder, return_period_file,
+                                  out_directory, threshold):
     """
     Create warning points from return periods and ECMWF prediction data
     """
@@ -329,32 +169,6 @@ def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, 
     return_20_points_features = []
     return_10_points_features = []
     return_2_points_features = []
-    # rivids = []
-    # rivid_indices = dict()
-    # return_period_results = dict()
-    # for rivid_index, rivid in enumerate(merged_ds.rivid.values):
-    #     rivids.append(rivid)
-    #     rivid_indices[rivid]=rivid_index
-    # pool = Pool()
-    # # pass all constant variables to the function using the partial function
-    # func = partial(compare_return_periods_to_thresholds, return_period_rivids, return_period_20_data, 
-    #                                  return_period_10_data, return_period_2_data, return_period_lat_data, 
-    #                                  return_period_lon_data, merged_ds, mean_ds, 
-    #                                  std_ds, max_ds, threshold, rivid_indices) 
-    # for return_period, feature_geojson in pool.imap_unordered(func, rivids):
-    #     if return_period == 20:
-    #         return_10_points_features.append(feature_geojson)
-    #     elif return_period == 10:
-    #         return_20_points_features.append(feature_geojson)
-    #     elif return_period == 2:
-    #         return_2_points_features.append(feature_geojson)
-    #     elif return_period == 0:
-    #         pass
-    # pool.close()
-    # pool.join()
-    # print("{0} reaches exceed the 20-Year Return Period".format(len(return_20_points_features)))
-    # print("{0} reaches exceed the 10-Year Return Period".format(len(return_10_points_features)))
-    # print("{0} reaches exceed the 2-Year Return Period".format(len(return_2_points_features)))
     for rivid_index, rivid in enumerate(merged_ds.rivid.values):
         return_rivid_index = np.where(return_period_rivids == rivid)[0][0]
         return_period_20 = return_period_20_data[return_rivid_index]
@@ -364,12 +178,12 @@ def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, 
         lon_coord = return_period_lon_data[return_rivid_index]
 
         # create graduated thresholds if needed
-        if threshold is not None:
-            if return_period_20 < threshold:
-                return_period_20 = -1
-                return_period_10 = -1
-                return_period_2 = -1
+        if return_period_20 < threshold:
+            return_period_20 = -1
+            return_period_10 = -1
+            return_period_2 = -1
 
+        # get mean
         mean_ar = mean_ds.isel(rivid=rivid_index)
         # mean plus std
         std_ar = std_ds.isel(rivid=rivid_index)
@@ -425,26 +239,17 @@ def generate_ecmwf_warning_points(watershed, subbasin, ecmwf_prediction_folder, 
                 return_10_points_features.append(feature_std_geojson)
             elif peak_info.std_upper > return_period_2:
                 return_2_points_features.append(feature_std_geojson)
-    print("{0} reaches exceed the 20-Year Return Period".format(len(return_20_points_features)))
-    print("{0} reaches exceed the 10-Year Return Period".format(len(return_10_points_features)))
-    print("{0} reaches exceed the 2-Year Return Period".format(len(return_2_points_features)))
-    print("Writing Output ...")
-    if len(return_20_points_features)>0:
-        filename = "return_20_points.geojson"
-        with open(os.path.join(out_directory, filename), 'w') \
-                as outfile:
-            outfile.write(text(dumps(
-                geojson_features_to_collection(return_20_points_features))))
-    if len(return_10_points_features)>0:
-        filename = "return_10_points.geojson"
-        with open(os.path.join(out_directory, filename), 'w') \
-                as outfile:
-            outfile.write(text(dumps(
-                geojson_features_to_collection(return_10_points_features))))
-    if len(return_2_points_features)>0:
-        filename = "return_2_points.geojson"
-        with open(os.path.join(out_directory, filename), 'w') \
-                as outfile:
-            outfile.write(text(dumps(
-                geojson_features_to_collection(return_2_points_features))))
 
+    print("Writing Output ...")
+    with open(os.path.join(out_directory, "return_20_points.geojson"), 'w') \
+            as outfile:
+        outfile.write(text(dumps(
+            geojson_features_to_collection(return_20_points_features))))
+    with open(os.path.join(out_directory, "return_10_points.geojson"), 'w') \
+            as outfile:
+        outfile.write(text(dumps(
+            geojson_features_to_collection(return_10_points_features))))
+    with open(os.path.join(out_directory, "return_2_points.geojson"), 'w') \
+            as outfile:
+        outfile.write(text(dumps(
+            geojson_features_to_collection(return_2_points_features))))
