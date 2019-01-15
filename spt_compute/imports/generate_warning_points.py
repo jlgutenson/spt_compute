@@ -147,7 +147,7 @@ def generate_ecmwf_warning_points(ecmwf_prediction_folder, return_period_file,
 
     merged_ds = xarray.concat(qout_datasets,
                               pd.Index(ensemble_index_list, name='ensemble'))
-
+    print("Made it here Joseph...")
     # convert to daily max
     merged_ds = merged_ds.resample('D', dim='time', how='max', skipna=True)
     # analyze data to get statistic bands
