@@ -147,7 +147,7 @@ def generate_ecmwf_warning_points(ecmwf_prediction_folder, return_period_file,
 
     merged_ds = xarray.concat(qout_datasets,
                               pd.Index(ensemble_index_list, name='ensemble'))
-    print("Made it here Joseph...")
+    # Works through here
     # convert to daily max
     merged_ds = merged_ds.resample('D', dim='time', how='max', skipna=True)
     # analyze data to get statistic bands
@@ -177,7 +177,8 @@ def generate_ecmwf_warning_points(ecmwf_prediction_folder, return_period_file,
         lat_coord = return_period_lat_data[return_rivid_index]
         lon_coord = return_period_lon_data[return_rivid_index]
 
-        # create graduated thresholds if needed
+        # the threshold sets the value to -1 to ensure no warning 
+        # flag generation occurs.
         if return_period_20 < threshold:
             return_period_20 = -1
             return_period_10 = -1
@@ -190,7 +191,7 @@ def generate_ecmwf_warning_points(ecmwf_prediction_folder, return_period_file,
         std_upper_ar = (mean_ar + std_ar)
         max_ar = max_ds.isel(rivid=rivid_index)
         std_upper_ar[std_upper_ar > max_ar] = max_ar
-
+        print("Hey Joseph...")
         combinded_stats = pd.DataFrame({
             'mean': mean_ar.to_dataframe().Qout,
             'std_upper': std_upper_ar.to_dataframe().Qout
